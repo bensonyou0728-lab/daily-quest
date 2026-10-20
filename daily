@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日任務 RPG｜把日常變成冒險</title>
+<style>
+  :root{
+    --bg:#0f1226; --card:#191d38; --card2:#222748; --text:#f7f7fb;
+    --muted:#aeb5d1; --primary:#7c5cff; --secondary:#20d6a3;
+    --danger:#ff6b81; --gold:#ffd166; --border:#343a61;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;
+    background:radial-gradient(circle at top,#252b5c 0,#0f1226 48%);
+    color:var(--text); min-height:100vh;
+  }
+  .wrap{width:min(1100px,92%);margin:auto;padding:28px 0 50px}
+  header{text-align:center;margin-bottom:22px}
+  header h1{font-size:clamp(30px,5vw,52px);margin:8px 0}
+  header p{color:var(--muted);margin:0}
+  .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+  .card{
+    background:rgba(25,29,56,.92);border:1px solid var(--border);
+    border-radius:22px;padding:22px;box-shadow:0 15px 40px rgba(0,0,0,.22);
+  }
+  .profile{display:flex;justify-content:space-between;gap:16px;align-items:center}
+  .level{font-size:26px;font-weight:800}
+  .xpbar{height:12px;background:#303653;border-radius:20px;overflow:hidden;margin:12px 0 6px}
+  .xpfill{height:100%;background:linear-gradient(90deg,var(--primary),var(--secondary));width:0%;transition:.35s}
+  .muted{color:var(--muted)}
+  .mission{
+    min-height:270px;display:flex;flex-direction:column;justify-content:center;
+    align-items:center;text-align:center;padding:24px;
+    background:linear-gradient(145deg,#252b59,#181c37);
+  }
+  .tag{color:var(--gold);font-weight:700;font-size:14px}
+  .mission h2{font-size:clamp(26px,4vw,42px);margin:14px 0}
+  .reward{font-size:18px;color:var(--secondary);font-weight:700}
+  button{
+    border:0;border-radius:14px;padding:12px 17px;font-weight:800;cursor:pointer;
+    color:white;background:var(--primary);transition:.15s; margin:5px;
+  }
+  button:hover{transform:translateY(-2px);filter:brightness(1.08)}
+  button.secondary{background:#343a61}
+  button.success{background:#12a97f}
+  button.danger{background:#d94b66}
+  .actions{text-align:center;margin-top:14px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:15px}
+  .stat{background:var(--card2);border-radius:15px;padding:15px;text-align:center}
+  .stat b{display:block;font-size:25px;color:var(--gold)}
+  .list{display:flex;flex-direction:column;gap:9px;max-height:320px;overflow:auto}
+  .item{display:flex;align-items:center;gap:10px;background:var(--card2);padding:11px 13px;border-radius:13px}
+  .item.done{opacity:.55;text-decoration:line-through}
+  .item span{flex:1}
+  .badge{font-size:12px;padding:4px 8px;border-radius:99px;background:#3a4169;color:#dce1ff}
+  .timer{text-align:center}
+  .timer .clock{font-size:62px;font-variant-numeric:tabular-nums;font-weight:900;margin:4px 0}
+  .timer select{background:var(--card2);color:white;border:1px solid var(--border);padding:9px;border-radius:10px}
+  .history{margin-top:18px}
+  .toast{
+    position:fixed;left:50%;bottom:25px;transform:translateX(-50%) translateY(100px);
+    background:#fff;color:#15182d;padding:13px 18px;border-radius:12px;font-weight:800;
+    transition:.3s;z-index:5;box-shadow:0 10px 30px #0006
+  }
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .footer{text-align:center;color:var(--muted);font-size:13px;margin-top:22px}
+  @media(max-width:800px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div style="font-size:42px">🎮</div>
+    <h1>今日任務 RPG</h1>
+    <p>把「我應該做的事」變成「我想破關的任務」</p>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <div class="profile">
+        <div>
+          <div class="muted">冒險者</div>
+          <div class="level" id="levelText">Lv. 1 新手冒險者</div>
+        </div>
+        <div style="font-size:42px" id="avatar">🧙</div>
+      </div>
+      <div class="xpbar"><div class="xpfill" id="xpFill"></div></div>
+      <div class="muted" id="xpText">0 / 100 XP</div>
+
+      <div class="mission" style="margin-top:18px;border-radius:18px">
+        <div class="tag" id="missionType">⚔️ 隨機任務</div>
+        <h2 id="missionTitle">準備開始你的冒險</h2>
+        <div class="reward" id="missionReward">完成任務可獲得 XP</div>
+      </div>
+      <div class="actions">
+        <button onclick="newMission()">🎲 抽一個任務</button>
+        <button class="success" onclick="completeMission()">✅ 完成任務</button>
+        <button class="secondary" onclick="skipMission()">↪ 跳過</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b id="doneCount">0</b><span class="muted">完成任務</span></div>
+        <div class="stat"><b id="totalXp">0</b><span class="muted">累積 XP</span></div>
+        <div class="stat"><b id="streak">0</b><span class="muted">今日連勝</span></div>
+      </div>
+    </section>
+
+    <aside>
+      <section class="card timer">
+        <div class="muted">⏱️ 專注副本</div>
+        <div class="clock" id="clock">25:00</div>
+        <select id="duration" onchange="resetTimer()">
+          <option value="25">25 分鐘</option>
+          <option value="15">15 分鐘</option>
+          <option value="5">5 分鐘</option>
+        </select>
+        <div style="margin-top:12px">
+          <button onclick="startTimer()">▶ 開始</button>
+          <button class="secondary" onclick="pauseTimer()">⏸ 暫停</button>
+          <button class="danger" onclick="resetTimer()">↺ 重設</button>
+        </div>
+      </section>
+
+      <section class="card history">
+        <h3>📜 今日戰績</h3>
+        <div class="list" id="historyList"></div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="footer">資料會保存在瀏覽器 localStorage，重新整理頁面也不會消失。</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const missions = [
+  {type:"🧠 智慧任務", title:"讀 10 頁書或文章", xp:30},
+  {type:"💻 技能任務", title:"學習一個新的程式技巧", xp:40},
+  {type:"🧹 整理任務", title:"整理桌面 5 分鐘", xp:20},
+  {type:"🏃 活力任務", title:"伸展或走路 10 分鐘", xp:25},
+  {type:"💧 生活任務", title:"喝一大杯水並離開螢幕 5 分鐘", xp:15},
+  {type:"📚 學習任務", title:"複習今天學過的一個概念", xp:30},
+  {type:"🎨 創意任務", title:"花 10 分鐘做一件有創意的小事", xp:35},
+  {type:"🧘 放鬆任務", title:"閉眼深呼吸 3 分鐘", xp:15},
+  {type:"📱 極限任務", title:"手機開啟勿擾模式 20 分鐘", xp:35}
+];
+
+let data = JSON.parse(localStorage.getItem("rpgData") || '{"xp":0,"done":0,"history":[],"streak":0}');
+let current = null;
+let timer = null;
+let seconds = 1500;
+
+function save(){ localStorage.setItem("rpgData", JSON.stringify(data)); }
+function level(){ return Math.floor(data.xp / 100) + 1; }
+function render(){
+  const lv = level(), within = data.xp % 100;
+  const names=["新手冒險者","探索者","任務達人","副本征服者","傳奇玩家"];
+  document.getElementById("levelText").textContent=`Lv. ${lv} ${names[Math.min(names.length-1,lv-1)]}`;
+  document.getElementById("xpFill").style.width=within+"%";
+  document.getElementById("xpText").textContent=`${within} / 100 XP`;
+  document.getElementById("doneCount").textContent=data.done;
+  document.getElementById("totalXp").textContent=data.xp;
+  document.getElementById("streak").textContent=data.streak;
+  const list=document.getElementById("historyList");
+  list.innerHTML=data.history.length ? data.history.slice().reverse().map(x=>
+    `<div class="item done"><span>${x.title}</span><span class="badge">+${x.xp} XP</span></div>`
+  ).join("") : '<div class="muted">還沒有戰績，先抽一個任務吧！</div>';
+}
+function newMission(){
+  current=missions[Math.floor(Math.random()*missions.length)];
+  document.getElementById("missionType").textContent=current.type;
+  document.getElementById("missionTitle").textContent=current.title;
+  document.getElementById("missionReward").textContent=`完成後 +${current.xp} XP`;
+}
+function completeMission(){
+  if(!current){toast("請先抽一個任務 🎲");return;}
+  data.xp+=current.xp; data.done++; data.streak++;
+  data.history.push({title:current.title,xp:current.xp});
+  save(); render(); toast(`任務完成！獲得 ${current.xp} XP 🎉`);
+  current=null;
+  document.getElementById("missionTitle").textContent="任務完成！再接再厲";
+  document.getElementById("missionReward").textContent="抽取下一個任務吧";
+}
+function skipMission(){
+  if(!current){toast("目前沒有任務可以跳過");return;}
+  data.streak=0; save(); render(); current=null;
+  document.getElementById("missionTitle").textContent="休息一下，再挑戰吧";
+  document.getElementById("missionReward").textContent="跳過不扣 XP，但連勝會歸零";
+}
+function toast(msg){
+  const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");
+  setTimeout(()=>el.classList.remove("show"),1800);
+}
+function updateClock(){
+  const m=String(Math.floor(seconds/60)).padStart(2,"0");
+  const s=String(seconds%60).padStart(2,"0");
+  document.getElementById("clock").textContent=`${m}:${s}`;
+}
+function startTimer(){
+  if(timer) return;
+  timer=setInterval(()=>{
+    if(seconds<=0){
+      clearInterval(timer);timer=null;toast("專注副本完成！+20 XP 🎉");
+      data.xp+=20;data.done++;data.streak++;data.history.push({title:"完成一次專注副本",xp:20});
+      save();render();resetTimer();return;
+    }
+    seconds--;updateClock();
+  },1000);
+}
+function pauseTimer(){clearInterval(timer);timer=null;}
+function resetTimer(){
+  pauseTimer();seconds=Number(document.getElementById("duration").value)*60;updateClock();
+}
+render(); updateClock(); newMission();
+</script>
+</body>
+</html>
+Add initial web app
